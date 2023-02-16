@@ -10,6 +10,9 @@ import io.netty.util.concurrent.CompleteFuture;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ *
+ */
 public class NettyTransport implements Transport {
 
     private final Channel channel;
@@ -22,9 +25,10 @@ public class NettyTransport implements Transport {
 
     @Override
     public CompletableFuture<Command> send(Command request) {
+        //构建返回值
         CompletableFuture<Command> completableFuture = new CompletableFuture<>();
         try {
-            // 将在途请求放到inFlightRequests中
+            // 将请求放到inFlightRequests中
             inFlightRequests.put(new ResponseFuture(request.getHeader().getRequestId(), completableFuture));
             // 发送命令
             channel.writeAndFlush(request).addListener((ChannelFutureListener) channelFuture -> {
