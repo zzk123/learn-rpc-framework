@@ -12,6 +12,7 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.sctp.nio.NioSctpChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.SocketAddress;
 import java.util.LinkedList;
@@ -30,13 +31,13 @@ public class NettyClient implements TransportClient {
     //请求，响应处理
     private List<Channel> channels = new LinkedList<>();
 
-    public NettyClient(){
+    public NettyClient() {
         inFlightRequests = new InFlightRequests();
     }
 
-    private Bootstrap newBootstrap(ChannelHandler channelHandler, EventLoopGroup ioEventGroup){
+    private Bootstrap newBootstrap(ChannelHandler channelHandler, EventLoopGroup ioEventGroup) {
         Bootstrap bootstrap = new Bootstrap();
-        bootstrap.channel(Epoll.isAvailable() ? EpollSocketChannel.class : NioSctpChannel.class)
+        bootstrap.channel(Epoll.isAvailable() ? EpollSocketChannel.class : NioSocketChannel.class)
                 .group(ioEventGroup)
                 .handler(channelHandler)
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
@@ -48,60 +49,59 @@ public class NettyClient implements TransportClient {
         return new NettyTransport(createChannel(address, connectionTimeout), inFlightRequests);
     }
 
-    private synchronized Channel createChannel(SocketAddress address, long connectionTimeOut) throws InterruptedException, TimeoutException{
+    private synchronized Channel createChannel(SocketAddress address, long connectionTimeout) throws InterruptedException, TimeoutException {
         if (address == null) {
             throw new IllegalArgumentException("address must not be null!");
         }
-        if(ioEventGroup == null){
+        if (ioEventGroup == null) {
             ioEventGroup = newIoEventGroup();
         }
-        if(bootstrap == null){
+        if (bootstrap == null){
             ChannelHandler channelHandlerPipeline = newChannelHandlerPipeline();
             bootstrap = newBootstrap(channelHandlerPipeline, ioEventGroup);
         }
-
         ChannelFuture channelFuture;
         Channel channel;
         channelFuture = bootstrap.connect(address);
-        if(!channelFuture.await(connectionTimeOut)){
+        if (!channelFuture.await(connectionTimeout)) {
             throw new TimeoutException();
         }
-
         channel = channelFuture.channel();
-        if(channel == null || !channel.isActive()){
+        if (channel == null || !channel.isActive()) {
             throw new IllegalStateException();
         }
         channels.add(channel);
         return channel;
     }
-
-    private EventLoopGroup newIoEventGroup(){
-        if(Epoll.isAvailable()){
-            return new EpollEventLoopGroup();
-        }
-        return new NioEventLoopGroup();
-    }
-
-    private ChannelHandler newChannelHandlerPipeline(){
+    private ChannelHandler newChannelHandlerPipeline() {
         return new ChannelInitializer<Channel>() {
             @Override
-            protected void initChannel(Channel channel) throws Exception {
+            protected void initChannel(Channel channel) {
                 channel.pipeline()
                         .addLast(new ResponseDecoder())
-                        .addLast(new RequestDecoder())
+                        .addLast(new RequestEncoder())
                         .addLast(new ResponseInvocation(inFlightRequests));
             }
         };
     }
 
+    private EventLoopGroup newIoEventGroup() {
+
+        if (Epoll.isAvailable()) {
+            return new EpollEventLoopGroup();
+        } else {
+            return new NioEventLoopGroup();
+        }
+    }
+
     @Override
     public void close() {
-        for(Channel channel : channels){
-            if(null != channel){
+        for (Channel channel : channels) {
+            if(null != channel) {
                 channel.close();
             }
         }
-        if(ioEventGroup != null){
+        if (ioEventGroup != null) {
             ioEventGroup.shutdownGracefully();
         }
         inFlightRequests.close();

@@ -16,13 +16,14 @@ import java.util.Map;
 public class MetadataSerializer implements Serializer<Metadata> {
     @Override
     public int size(Metadata entry) {
-        return Short.BYTES +
+        return Short.BYTES +                   // Size of the map                  2 bytes
                 entry.entrySet().stream()
                         .mapToInt(this::entrySize).sum();
     }
 
     @Override
     public void serialize(Metadata entry, byte[] bytes, int offset, int length) {
+
         ByteBuffer buffer = ByteBuffer.wrap(bytes, offset, length);
         buffer.putShort(toShortSafely(entry.size()));
 
@@ -41,17 +42,30 @@ public class MetadataSerializer implements Serializer<Metadata> {
         });
     }
 
+    private int entrySize(Map.Entry<String, List<URI>> e) {
+        // Map entry:
+        return Short.BYTES +       // Key string length:               2 bytes
+                e.getKey().getBytes().length +    // Serialized key bytes:   variable length
+                Short.BYTES + // List size:              2 bytes
+                e.getValue().stream() // Value list
+                        .mapToInt(uri -> {
+                            return Short.BYTES +       // Key string length:               2 bytes
+                                    uri.toASCIIString().getBytes(StandardCharsets.UTF_8).length;    // Serialized key bytes:   variable length
+                        }).sum();
+    }
+
     @Override
     public Metadata parse(byte[] bytes, int offset, int length) {
         ByteBuffer buffer = ByteBuffer.wrap(bytes, offset, length);
 
         Metadata metadata = new Metadata();
         int sizeOfMap = buffer.getShort();
-        for(int i = 0; i < sizeOfMap; i++){
+        for (int i = 0; i < sizeOfMap; i++) {
             int keyLength = buffer.getShort();
-            byte[] keyBytes = new byte[keyLength];
+            byte [] keyBytes = new byte [keyLength];
             buffer.get(keyBytes);
             String key = new String(keyBytes, StandardCharsets.UTF_8);
+
 
             int uriListSize = buffer.getShort();
             List<URI> uriList = new ArrayList<>(uriListSize);
@@ -64,7 +78,7 @@ public class MetadataSerializer implements Serializer<Metadata> {
             }
             metadata.put(key, uriList);
         }
-        return null;
+        return metadata;
     }
 
     @Override
@@ -75,17 +89,6 @@ public class MetadataSerializer implements Serializer<Metadata> {
     @Override
     public Class<Metadata> getSerializeClass() {
         return Metadata.class;
-    }
-
-    private int entrySize(Map.Entry<String, List<URI>> e){
-        return Short.BYTES +
-                e.getKey().getBytes().length +
-                Short.BYTES +
-                e.getValue().stream()
-                        .mapToInt(uri ->{
-                            return Short.BYTES +
-                                    uri.toASCIIString().getBytes(StandardCharsets.UTF_8).length;
-                        }).sum();
     }
 
     private short toShortSafely(int v) {

@@ -6,6 +6,9 @@ import java.io.Closeable;
 import java.net.URI;
 import java.util.Collection;
 
+/**
+ * 远程调用接口定义
+ */
 public interface RpcAccessPoint extends Closeable {
 
     /**

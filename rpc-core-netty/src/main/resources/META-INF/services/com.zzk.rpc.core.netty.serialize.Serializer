@@ -1,0 +1,3 @@
+com.zzk.rpc.core.netty.serialize.impl.MetadataSerializer
+com.zzk.rpc.core.netty.serialize.impl.RpcRequestSerializer
+com.zzk.rpc.core.netty.serialize.impl.StringSerializer

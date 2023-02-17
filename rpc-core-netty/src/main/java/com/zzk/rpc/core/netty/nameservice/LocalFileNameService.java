@@ -32,30 +32,32 @@ public class LocalFileNameService implements NameService {
 
     @Override
     public void connect(URI nameServiceUri) {
-        if(!schemes.contains(nameServiceUri.getScheme())){
+        if(schemes.contains(nameServiceUri.getScheme())) {
+            file = new File(nameServiceUri);
+        } else {
             throw new RuntimeException("Unsupported scheme!");
         }
-        file = new File(nameServiceUri);
     }
 
     @Override
     public synchronized void registerService(String serviceName, URI uri) throws IOException {
         logger.info("Register service: {}, uri: {}.", serviceName, uri);
         try(RandomAccessFile raf = new RandomAccessFile(file, "rw");
-            FileChannel fileChannel = raf.getChannel()){
+            FileChannel fileChannel = raf.getChannel()) {
             FileLock lock = fileChannel.lock();
-            try{
+            try {
                 int fileLength = (int) raf.length();
                 Metadata metadata;
                 byte[] bytes;
-                if(fileLength > 0){
+                if(fileLength > 0) {
                     bytes = new byte[(int) raf.length()];
                     ByteBuffer buffer = ByteBuffer.wrap(bytes);
-                    while(buffer.hasRemaining()){
+                    while (buffer.hasRemaining()) {
                         fileChannel.read(buffer);
                     }
+
                     metadata = SerializeSupport.parse(bytes);
-                }else{
+                } else {
                     metadata = new Metadata();
                 }
                 List<URI> uris = metadata.computeIfAbsent(serviceName, k -> new ArrayList<>());
@@ -69,7 +71,7 @@ public class LocalFileNameService implements NameService {
                 fileChannel.position(0L);
                 fileChannel.write(ByteBuffer.wrap(bytes));
                 fileChannel.force(true);
-            }finally {
+            } finally {
                 lock.release();
             }
         }

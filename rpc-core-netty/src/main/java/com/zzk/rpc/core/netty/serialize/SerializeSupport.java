@@ -37,11 +37,11 @@ public class SerializeSupport {
         typeMap.put(type, eClass);
     }
     @SuppressWarnings("unchecked")
-    private static <E> E parse(byte[] buffer, int offset, int length, Class<E> eClass){
-        Object entry = serializerMap.get(eClass).parse(buffer, offset, length);
-        if(eClass.isAssignableFrom(entry.getClass())){
+    private static  <E> E parse(byte [] buffer, int offset, int length, Class<E> eClass) {
+        Object entry =  serializerMap.get(eClass).parse(buffer, offset, length);
+        if (eClass.isAssignableFrom(entry.getClass())) {
             return (E) entry;
-        }else{
+        } else {
             throw new SerializeException("Type mismatch!");
         }
     }
